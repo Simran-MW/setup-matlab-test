@@ -23,7 +23,7 @@ function resolveInstallDependencies(input: string): boolean {
         const isGitHubHosted = runnerEnvironment === "github-hosted" && agentIsSelfHosted !== "1";
       
         // shouldInstall will return true for self-hosted and false for gitub-hosted
-        const shouldInstall = !isGitHubHosted;
+        const shouldInstall = isGitHubHosted;
         
         core.info(`Auto-detected runner type: ${isGitHubHosted ? 'GitHub-hosted' : 'self-hosted'}`);
         core.info(`System dependencies will ${shouldInstall ? 'be' : 'not be'} installed (auto mode)`);
