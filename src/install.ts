@@ -5,7 +5,7 @@ import * as matlab from "./matlab";
 import * as mpm from "./mpm";
 import * as path from "path";
 import * as cache from "./cache-restore";
-import { State } from './install-state';
+import { State } from "./install-state";
 
 /**
  * Set up an instance of MATLAB on the runner.
@@ -22,10 +22,21 @@ import { State } from './install-state';
  *                       true  -> install system dependencies
  *                       false -> skip system dependencies
  */
-export async function install(platform: string, architecture: string, release: string, products: string[], useCache: boolean, installSystemDependencies: boolean) {
+export async function install(
+    platform: string,
+    architecture: string,
+    release: string,
+    products: string[],
+    useCache: boolean,
+    installSystemDependencies: boolean,
+) {
     const releaseInfo = await matlab.getReleaseInfo(release);
     if (releaseInfo.name < "r2020b") {
-        return Promise.reject(Error(`Release '${releaseInfo.name}' is not supported. Use 'R2020b' or a later release.`));
+        return Promise.reject(
+            Error(
+                `Release '${releaseInfo.name}' is not supported. Use 'R2020b' or a later release.`,
+            ),
+        );
     }
 
     // install system dependencies based on the resolved flag in index.ts
@@ -35,7 +46,6 @@ export async function install(platform: string, architecture: string, release: s
         });
     }
 
-    
     await core.group("Setting up MATLAB", async () => {
         let matlabArch = architecture;
         if (platform === "darwin" && architecture === "arm64" && releaseInfo.name < "r2023b") {
@@ -47,20 +57,27 @@ export async function install(platform: string, architecture: string, release: s
 
         if (useCache) {
             const supportFilesDir = matlab.getSupportPackagesPath(platform, releaseInfo.name);
-            cacheHit = await cache.restoreMATLAB(releaseInfo, platform, matlabArch, products, destination, supportFilesDir);
+            cacheHit = await cache.restoreMATLAB(
+                releaseInfo,
+                platform,
+                matlabArch,
+                products,
+                destination,
+                supportFilesDir,
+            );
         }
 
         if (!cacheHit) {
             const mpmPath: string = await mpm.setup(platform, matlabArch);
             await mpm.install(mpmPath, releaseInfo, products, destination);
-            core.saveState(State.InstallSuccessful, 'true');
+            core.saveState(State.InstallSuccessful, "true");
         }
 
         core.addPath(path.join(destination, "bin"));
-        core.setOutput('matlabroot', destination);
+        core.setOutput("matlabroot", destination);
 
         await matlab.setupBatch(platform, matlabArch);
-        
+
         if (platform === "win32") {
             if (matlabArch === "x86") {
                 core.addPath(path.join(destination, "runtime", "win32"));
