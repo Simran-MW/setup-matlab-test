@@ -7,6 +7,33 @@ import * as path from "path";
 import * as cache from "./cache-restore";
 import { State } from "./install-state";
 
+
+export function resolveInstallDependencies(input: string): boolean {
+    const normalized = (input ?? '').trim().toLowerCase();
+
+    if (normalized === 'true') {
+        return true;
+    }
+
+    if (normalized === 'false'){
+        return false;
+    }
+
+    if (normalized === 'auto') {
+        // detect runner type and provide value accordingly
+        const runnerEnvironment = process.env["RUNNER_ENVIRONMENT"];
+        const agentIsSelfHosted = process.env["AGENT_ISSELFHOSTED"];
+
+        const isGitHubHosted = runnerEnvironment === "github-hosted" && agentIsSelfHosted !== "1";
+
+        core.info(`Auto-detected runner type: ${isGitHubHosted ? 'GitHub-hosted' : 'self-hosted'}`);
+        core.info(`System dependencies will ${isGitHubHosted ? 'be' : 'not be'} installed (auto mode)`);
+
+        return isGitHubHosted;
+    }
+    throw new Error(`Invalid value for install-system-dependencies: "${input}". Must be "auto", "true", or "false".`);
+}
+
 /**
  * Set up an instance of MATLAB on the runner.
  *
@@ -18,17 +45,17 @@ import { State } from "./install-state";
  * @param release Release of MATLAB to be set up (e.g. "latest" or "R2020a").
  * @param products A list of products to install (e.g. ["MATLAB", "Simulink"]).
  * @param useCache whether to use the cache to restore & save the MATLAB installation
- * @param installSysDeps resolved boolean (from "auto" | "true" | "false"):
- *                       true  -> install system dependencies
- *                       false -> skip system dependencies
+ * @param installSystemDependenciesInput Input value for install-system-dependencies ("auto" | "true" | "false")
  */
+
+
 export async function install(
     platform: string,
     architecture: string,
     release: string,
     products: string[],
     useCache: boolean,
-    installSystemDependencies: boolean,
+    installSystemDependenciesInput: string,
 ) {
     const releaseInfo = await matlab.getReleaseInfo(release);
     if (releaseInfo.name < "r2020b") {
@@ -39,7 +66,9 @@ export async function install(
         );
     }
 
-    // install system dependencies based on the resolved flag in index.ts
+    // resolve system-dependencies based on input and runner type
+    const installSystemDependencies = resolveInstallDependencies(installSystemDependenciesInput);
+
     if (installSystemDependencies) {
         await core.group("Preparing system for MATLAB", async () => {
             await matlab.installSystemDependencies(platform, architecture, releaseInfo.name);
